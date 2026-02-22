@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-456">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Lava Lamp</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #111;
+            overflow: hidden;
+        }
+
+        .lamp {
+            width: 300px;
+            height: 600px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 150px 150px 30px 30px;
+            position: relative;
+            border: 4px solid #333;
+            overflow: hidden;
+            cursor: pointer;
+            --move-height: 550px;
+        }
+
+        .lamp.fullscreen {
+            width: 100vw;
+            height: 100vh;
+            border: none;
+            border-radius: 0;
+            background: transparent;
+            --move-height: 110vh;
+        }
+
+        .blob {
+            position: absolute;
+            background: var(--lamp-color, #ff4500);
+            border-radius: 50%;
+            filter: blur(20px);
+            width: 80px;
+            height: 80px;
+            left: 60px;
+            animation: move var(--speed, 8s) infinite ease-in-out;
+            opacity: 0.8;
+            transition: background 0.5s ease;
+        }
+
+        @keyframes move {
+            0%, 100% { transform: translateY(var(--move-height, 350px)) scale(calc(1.2 * var(--sound-scale, 1))); }
+            50% { transform: translateY(-50px) scale(calc(0.8 * var(--sound-scale, 1))); }
+        }
+
+        .blob:nth-child(2) { animation-delay: -2s; width: 120px; height: 120px; left: 20px; }
+        .blob:nth-child(3) { animation-delay: -6s; width: 100px; height: 100px; left: 60px; }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 260px;
+            background: rgba(30, 30, 30, 0.95);
+            padding: 60px 20px 20px 20px;
+            box-sizing: border-box;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            color: white;
+            font-family: sans-serif;
+            border-right: 1px solid #444;
+            overflow-y: auto;
+        }
+
+        .sidebar.open {
+            transform: translateX(0);
+        }
+
+        .sidebar button, #sidebar-toggle {
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        #sidebar-toggle {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 101;
+            font-size: 1.2em;
+            padding: 5px 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="lamp" id="lamp" onclick="changeColor()">
+        <div class="blob"></div>
+        <div class="blob"></div>
+        <div class="blob"></div>
+    </div>
+
+    <button id="sidebar-toggle">☰</button>
+
+    <div class="sidebar" id="sidebar">
+        <label for="speed-slider">Speed</label>
+        <input type="range" id="speed-slider" min="2" max="20" value="14" step="1">
+        <label for="particle-slider">Particles</label>
+        <input type="range" id="particle-slider" min="1" max="15" value="3" step="1">
+        <button id="fullscreen-btn">Fullscreen</button>
+        <button id="sound-btn">Sound Mode</button>
+        <label for="intensity-slider">Sound Intensity</label>
+        <input type="range" id="intensity-slider" min="0.1" max="3.0" value="0.8" step="0.1">
+        <button id="multicolor-btn">Multicolor</button>
+        <button id="gradient-btn">Gradients</button>
+    </div>
+
+    <script>
+        let multicolor = false;
+        let useGradients = false;
+
+        function getRandomColor(gradients) {
+            const h = Math.floor(Math.random() * 360);
+            if (gradients) {
+                return `linear-gradient(${Math.floor(Math.random() * 360)}deg, hsl(${h}, 100%, 50%), hsl(${(h + 60) % 360}, 100%, 50%))`;
+            }
+            return `hsl(${h}, 100%, 50%)`;
+        }
+
+        function changeColor() {
+            if (multicolor) {
+                document.querySelectorAll('.blob').forEach(blob => blob.style.background = getRandomColor(useGradients));
+                return;
+            }
+            const colors = ['#ff4500', '#00ff00', '#0000ff', '#ff00ff', '#00ffff'];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            document.documentElement.style.setProperty('--lamp-color', randomColor);
+        }
+
+        const speedSlider = document.getElementById('speed-slider');
+        
+        speedSlider.addEventListener('input', (e) => {
+            const slider = e.target;
+            // Invert the slider value so that moving it to the right (higher value) makes the animation faster (lower duration).
+            const max = parseFloat(slider.max);
+            const min = parseFloat(slider.min);
+            const newDuration = max + min - parseFloat(slider.value);
+            document.documentElement.style.setProperty('--speed', `${newDuration}s`);
+        });
+
+        const particleSlider = document.getElementById('particle-slider');
+        const lamp = document.getElementById('lamp');
+
+        particleSlider.addEventListener('input', (e) => {
+            const count = parseInt(e.target.value);
+            const currentBlobs = lamp.querySelectorAll('.blob');
+            const currentCount = currentBlobs.length;
+
+            if (count > currentCount) {
+                for (let i = 0; i < count - currentCount; i++) {
+                    const blob = document.createElement('div');
+                    blob.classList.add('blob');
+                    // Randomize properties for variety
+                    const size = Math.floor(Math.random() * 60) + 60;
+                    const left = Math.floor(Math.random() * (lamp.clientWidth - size));
+                    const delay = Math.random() * -10;
+                    
+                    blob.style.width = `${size}px`;
+                    blob.style.height = `${size}px`;
+                    blob.style.left = `${left}px`;
+                    blob.style.animationDelay = `${delay}s`;
+                    
+                    if (multicolor) blob.style.background = getRandomColor(useGradients);
+                    
+                    lamp.appendChild(blob);
+                }
+            } else if (count < currentCount) {
+                for (let i = 0; i < currentCount - count; i++) {
+                    if (lamp.lastElementChild.classList.contains('blob')) {
+                        lamp.removeChild(lamp.lastElementChild);
+                    }
+                }
+            }
+        });
+
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        fullscreenBtn.addEventListener('click', () => {
+            lamp.classList.toggle('fullscreen');
+            
+            // Redistribute blobs horizontally for the new width
+            const blobs = lamp.querySelectorAll('.blob');
+            const width = lamp.clientWidth;
+            blobs.forEach(blob => {
+                // Get size from style or computed style
+                const size = parseInt(blob.style.width) || blob.offsetWidth;
+                const newLeft = Math.floor(Math.random() * (width - size));
+                blob.style.left = `${newLeft}px`;
+            });
+        });
+
+        const soundBtn = document.getElementById('sound-btn');
+        const intensitySlider = document.getElementById('intensity-slider');
+        let audioContext, analyser, source, soundActive = false;
+        let animationId;
+
+        soundBtn.addEventListener('click', async () => {
+            if (!soundActive) {
+                try {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    source = audioContext.createMediaStreamSource(stream);
+                    analyser = audioContext.createAnalyser();
+                    analyser.fftSize = 256;
+                    source.connect(analyser);
+                    
+                    soundActive = true;
+                    soundBtn.textContent = "Stop Sound";
+                    soundBtn.style.background = "#ff4500";
+                    visualizeSound();
+                } catch (err) {
+                    console.error('Error accessing microphone:', err);
+                    alert('Microphone access denied or not supported. Note: This feature requires a secure context (HTTPS or localhost) or specific browser flags for file:// access.');
+                }
+            } else {
+                soundActive = false;
+                soundBtn.textContent = "Sound Mode";
+                soundBtn.style.background = "";
+                if (audioContext && audioContext.state !== 'closed') audioContext.close();
+                cancelAnimationFrame(animationId);
+                document.documentElement.style.setProperty('--sound-scale', '1');
+                // Reset speed to slider value
+                speedSlider.dispatchEvent(new Event('input'));
+            }
+        });
+
+        function visualizeSound() {
+            if (!soundActive) return;
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(dataArray);
+            const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+            // Scale based on volume and intensity slider
+            const intensity = parseFloat(intensitySlider.value);
+            const scale = 1 + (average / 255) * intensity;
+            document.documentElement.style.setProperty('--sound-scale', scale);
+            animationId = requestAnimationFrame(visualizeSound);
+        }
+
+        const multicolorBtn = document.getElementById('multicolor-btn');
+        const gradientBtn = document.getElementById('gradient-btn');
+
+        multicolorBtn.addEventListener('click', () => {
+            multicolor = !multicolor;
+            multicolorBtn.style.background = multicolor ? '#ff4500' : '';
+            const blobs = document.querySelectorAll('.blob');
+            blobs.forEach(blob => {
+                blob.style.background = multicolor ? getRandomColor(useGradients) : '';
+            });
+        });
+
+        gradientBtn.addEventListener('click', () => {
+            useGradients = !useGradients;
+            gradientBtn.style.background = useGradients ? '#ff4500' : '';
+            if (multicolor) {
+                document.querySelectorAll('.blob').forEach(blob => blob.style.background = getRandomColor(useGradients));
+            }
+        });
+
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+            sidebarToggle.textContent = sidebar.classList.contains('open') ? '✕' : '☰';
+        });
+    </script>
+</body>
+</html>
